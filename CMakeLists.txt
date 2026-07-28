@@ -29,11 +29,25 @@ FetchContent_Declare(
 	GIT_SHALLOW TRUE
 )
 
-FetchContent_MakeAvailable(SDL3 glm)
+# Vulkan
+find_package(Vulkan REQUIRED)
+FetchContent_Declare(
+	volk
+	GIT_REPOSITORY https://github.com/zeux/volk.git
+	GIT_TAG 1.4.350
+	GIT_SHALLOW TRUE
+)
 
-add_executable(lightweaver src/main.cpp)
+FetchContent_MakeAvailable(SDL3 glm volk)
 
-target_link_libraries(lightweaver PRIVATE SDL3::SDL3-static glm::glm)
+add_executable(
+	lightweaver src/main.cpp
+	src/application.h
+	src/application.cpp
+)
+
+target_link_libraries(lightweaver PRIVATE SDL3::SDL3-static glm::glm volk::volk)
+target_compile_definitions(lightweaver PRIVATE VK_NO_PROTOTYPES)
 
 if (MSVC)
 	target_compile_options(lightweaver PRIVATE /W4 /permissive-)
