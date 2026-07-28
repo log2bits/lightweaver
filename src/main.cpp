@@ -1,22 +1,44 @@
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
+#include <cstdlib>
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_main.h>
 
-#include <iostream>
+int main(int argc, char* argv[]) {
+	(void)argc;
+	(void)argv;
 
-int main() {
-    glfwInit();
+	if (!SDL_Init(SDL_INIT_VIDEO)) {
+		SDL_Log("SDL_Init failed: %s", SDL_GetError());
+		return EXIT_FAILURE;
+	}
 
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+	SDL_Window* window = SDL_CreateWindow(
+		"Lightweaver", 1280, 720, SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE
+	);
 
-    GLFWwindow* window = glfwCreateWindow(1280, 720, "Lightweaver", nullptr, nullptr);
+	if (!window) {
+		SDL_Log("SDL_CreateWindow failed: %s", SDL_GetError());
+		SDL_Quit();
+		return EXIT_FAILURE;
+	}
 
-    while (!glfwWindowShouldClose(window)) {
-        glfwPollEvents();
-    }
+	int w, h, pw, ph;
+	SDL_GetWindowSize(window, &w, &h);
+	SDL_GetWindowSizeInPixels(window, &pw, &ph);
+	SDL_Log("window: %dx%d  pixels: %dx%d", w, h, pw, ph);
 
-    glfwDestroyWindow(window);
-    glfwTerminate();
+	bool running = true;
+	SDL_Event event;
 
-    return 0;
+	while (running) {
+		while (SDL_PollEvent(&event)) {
+			if (event.type == SDL_EVENT_QUIT) {
+				running = false;
+			}
+			SDL_Delay(16);
+		}
+	}
+
+	SDL_DestroyWindow(window);
+	SDL_Quit();
+	return EXIT_SUCCESS;
 }

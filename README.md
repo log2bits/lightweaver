@@ -9,7 +9,7 @@ The goal is a real time renderer written and optimized by hand to learn the API 
 **Lighting & materials**
 - [ ] PBR materials — metallic/roughness workflow, normal mapping
 - [ ] Point lights — clustered/froxel light culling *(later)*
-- [ ] Directional sun light
+- [ ] Directional sunlight
 - [ ] Shadow mapping with PCF - cascaded shadow maps *(later)*
 - [ ] Ambient occlusion (GTAO)
 - [ ] Image-based lighting from the sky - diffuse + specular IBL
@@ -37,6 +37,6 @@ The goal is a real time renderer written and optimized by hand to learn the API 
 
 ## Built with
 
-C++20 · Vulkan 1.3 (dynamic rendering, bindless) · GLSL shaders · CMake + Ninja · VMA · GLFW · glm
+C++20 · Vulkan 1.3 (dynamic rendering, bindless) · GLSL shaders · CMake + Ninja · VMA · SDL3 · glm
 
 *Named for the Lightweavers of the Cosmere, who weave light and sound into illusion.*

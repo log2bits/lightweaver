@@ -1,8 +1,5 @@
 build/
-out/
-.vs/
-CMakeCache.txt
-CMakeFiles/
-cmake_install.cmake
-*.user
+cmake-build-*/
+.idea/
 .DS_Store
+compile_commands.json
