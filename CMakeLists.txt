@@ -45,6 +45,7 @@ add_executable(
 	src/application.h
 	src/application.cpp
 	src/vk_check.h
+	src/vk_enumerate.h
 )
 
 target_link_libraries(lightweaver PRIVATE SDL3::SDL3-static glm::glm volk::volk)
