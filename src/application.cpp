@@ -7,13 +7,18 @@
 #include <cstring>
 #include <cstdlib>
 
-#define VK_CHECK(x)                                                        \
-    do {                                                                   \
-        VkResult err_ = (x);                                               \
-        if (err_ != VK_SUCCESS) {                                          \
-            SDL_Log("Vulkan error %d at %s:%d", err_, __FILE__, __LINE__); \
-            return false;                                                  \
-        }                                                                  \
+#define VK_CHECK(x)                         \
+    do {                                    \
+        VkResult err_ = (x);                \
+        if (err_ != VK_SUCCESS) {           \
+            SDL_Log(                        \
+				"Vulkan error %s at %s:%d", \
+				string_VkResult(err_),      \
+				__FILE__,                   \
+				__LINE__                    \
+			);                              \
+            return false;                   \
+        }                                   \
     } while (0)
 
 bool Application::init() {
@@ -23,12 +28,6 @@ bool Application::init() {
 }
 
 bool Application::initWindow() {
-	if (volkInitialize() != VK_SUCCESS) {
-		SDL_Log("volkInitialize failed - is the Vulkan runtime installed?");
-		return false;
-	}
-	SDL_Log("volk initialized, instance version: %u", volkGetInstanceVersion());
-
 	if (!SDL_Init(SDL_INIT_VIDEO)) {
 		SDL_Log("SDL_Init failed: %s", SDL_GetError());
 		return false;
@@ -102,24 +101,22 @@ bool Application::createInstance() {
 		extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
 	#endif
 
+	SDL_Log("Found %zu instance extensions:", extensions.size());
 	for (const char* ext : extensions) {
-		SDL_Log("instance extension: %s", ext);
+		SDL_Log("  %s", ext);
 	}
 
 	// Build layer list
 	std::vector<const char*> layers = { "VK_LAYER_KHRONOS_validation" };
 	uint32_t availableCount = 0;
-	vkEnumerateInstanceLayerProperties(&availableCount, nullptr);
+	VK_CHECK(vkEnumerateInstanceLayerProperties(&availableCount, nullptr));
 	std::vector<VkLayerProperties> available(availableCount);
-	vkEnumerateInstanceLayerProperties(&availableCount, available.data());
+	VK_CHECK(vkEnumerateInstanceLayerProperties(&availableCount, available.data()));
 
-	SDL_Log("Found %u instance layers", availableCount);
-	for (const auto& layer : available) {
-		SDL_Log("  layer: %s", layer.layerName);
-	}
-
+	SDL_Log("Found %u instance layers:", availableCount);
 	bool validationFound = false;
 	for (const auto& layer : available) {
+		SDL_Log("  %s", layer.layerName);
 		if (std::strcmp(layer.layerName, layers[0]) == 0) {
 			validationFound = true;
 			break;
@@ -127,7 +124,7 @@ bool Application::createInstance() {
 	}
 
 	if (!validationFound) {
-		SDL_Log("validation layer unavailable - continuing without it");
+		SDL_Log("Validation layer unavailable, continuing without it");
 		layers.clear();
 	}
 
@@ -175,6 +172,13 @@ bool Application::createInstance() {
 }
 
 bool Application::initVulkan() {
+	if (volkInitialize() != VK_SUCCESS) {
+		SDL_Log("volkInitialize failed, is the Vulkan runtime installed?");
+		return false;
+	}
+	uint32_t const v = volkGetInstanceVersion();
+	SDL_Log("volk initialized, instance version: %u.%u.%u",
+		VK_API_VERSION_MAJOR(v), VK_API_VERSION_MINOR(v), VK_API_VERSION_PATCH(v));
 	return createInstance();
 }
 
