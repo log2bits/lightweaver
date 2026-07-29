@@ -5,21 +5,7 @@
 #include <vulkan/vk_enum_string_helper.h>
 #include <vector>
 #include <cstring>
-#include <cstdlib>
-
-#define VK_CHECK(x)                         \
-    do {                                    \
-        VkResult err_ = (x);                \
-        if (err_ != VK_SUCCESS) {           \
-            SDL_Log(                        \
-				"Vulkan error %s at %s:%d", \
-				string_VkResult(err_),      \
-				__FILE__,                   \
-				__LINE__                    \
-			);                              \
-            return false;                   \
-        }                                   \
-    } while (0)
+#include "vk_check.h"
 
 bool Application::init() {
 	if (!initWindow())  return false;
@@ -109,9 +95,9 @@ bool Application::createInstance() {
 	// Build layer list
 	std::vector<const char*> layers = { "VK_LAYER_KHRONOS_validation" };
 	uint32_t availableCount = 0;
-	VK_CHECK(vkEnumerateInstanceLayerProperties(&availableCount, nullptr));
+	vkCheck(vkEnumerateInstanceLayerProperties(&availableCount, nullptr));
 	std::vector<VkLayerProperties> available(availableCount);
-	VK_CHECK(vkEnumerateInstanceLayerProperties(&availableCount, available.data()));
+	vkCheck(vkEnumerateInstanceLayerProperties(&availableCount, available.data()));
 
 	SDL_Log("Found %u instance layers:", availableCount);
 	bool validationFound = false;
@@ -156,17 +142,13 @@ bool Application::createInstance() {
 	#endif
 
 	// Create it
-	VK_CHECK(
-		vkCreateInstance(&createInfo, nullptr, &m_instance)
-	);
+	vkCheck(vkCreateInstance(&createInfo, nullptr, &m_instance));
 
 	// Load every function pointer from the new instance
 	volkLoadInstance(m_instance);
 
 	// Create the persistent messenger
-	VK_CHECK(
-		vkCreateDebugUtilsMessengerEXT(m_instance, &debugInfo, nullptr, &m_messenger)
-	);
+	vkCheck(vkCreateDebugUtilsMessengerEXT(m_instance, &debugInfo, nullptr, &m_messenger));
 
 	return true;
 }
