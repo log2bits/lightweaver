@@ -1,5 +1,5 @@
 #pragma once
-
+#include <vector>
 #include <volk.h>
 
 struct SDL_Window;
@@ -24,6 +24,8 @@ private:
 	bool pickPhysicalDevice();
 	bool createDevice();
 	bool isDeviceSuitable(VkPhysicalDevice physicalDevice, uint32_t& outGraphicsFamily) const;
+	bool createSwapchain();
+	void destroySwapchain();
 
 	static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 		VkDebugUtilsMessageSeverityFlagBitsEXT severity,
@@ -41,6 +43,11 @@ private:
 	VkPhysicalDevice         m_physicalDevice      = VK_NULL_HANDLE;
 	VkDevice                 m_device              = VK_NULL_HANDLE;
 	VkQueue                  m_graphicsQueue       = VK_NULL_HANDLE;
+	VkSwapchainKHR           m_swapchain           = VK_NULL_HANDLE;
+	VkFormat                 m_swapchainFormat     = VK_FORMAT_B8G8R8A8_SRGB;
+	VkExtent2D               m_swapchainExtent{};
+	std::vector<VkImage>     m_swapchainImages;
+	std::vector<VkImageView> m_swapchainImageViews;
 
 	uint32_t                 m_graphicsQueueFamily = UINT32_MAX;
 };

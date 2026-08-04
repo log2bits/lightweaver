@@ -1,4 +1,5 @@
 #include "application.h"
+#include <algorithm>
 #include <volk.h>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
@@ -29,6 +30,8 @@ void Application::run() {
 }
 
 void Application::shutdown() {
+	destroySwapchain();
+
 	if (m_device) {
 		vkDestroyDevice(m_device, nullptr);
 		m_device = VK_NULL_HANDLE;
@@ -102,6 +105,11 @@ bool Application::initVulkan() {
 		return false;
 	}
 
+	if (!createSwapchain()) {
+		SDL_Log("createSwapchain failed");
+		return false;
+	}
+
 	return true;
 }
 
@@ -130,26 +138,26 @@ bool Application::createInstance() {
 		extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
 	#endif
 
-	SDL_Log("Found %zu instance extensions:", extensions.size());
+	SDL_Log("found %zu instance extensions:", extensions.size());
 	for (const char* ext : extensions) {
-		SDL_Log("    %s", ext);
+		SDL_Log("  %s", ext);
 	}
 
 	// Build layer list
 	std::vector<const char*> valid_layers = { "VK_LAYER_KHRONOS_validation" };
 	std::vector<VkLayerProperties> layers = vkEnumerate<VkLayerProperties>(vkEnumerateInstanceLayerProperties);
 
-	SDL_Log("Found %zu instance layers:", layers.size());
+	SDL_Log("found %zu instance layers:", layers.size());
 	bool validationFound = false;
 	for (const VkLayerProperties& layerProperties : layers) {
-		SDL_Log("    %s", layerProperties.layerName);
+		SDL_Log("  %s", layerProperties.layerName);
 		if (std::strcmp(layerProperties.layerName, valid_layers[0]) == 0) {
 			validationFound = true;
 		}
 	}
 
 	if (!validationFound) {
-		SDL_Log("Validation layer unavailable, continuing without it");
+		SDL_Log("validation layer unavailable, continuing without it");
 		valid_layers.clear();
 	}
 
@@ -203,7 +211,7 @@ bool Application::createSurface() {
 bool Application::pickPhysicalDevice() {
 	std::vector<VkPhysicalDevice> physicalDevices = vkEnumerate<VkPhysicalDevice>(vkEnumeratePhysicalDevices, m_instance);
 
-	SDL_Log("Found %zu physical devices:", physicalDevices.size());
+	SDL_Log("found %zu physical devices:", physicalDevices.size());
 
 	VkPhysicalDevice fallback = VK_NULL_HANDLE;
 	uint32_t fallbackFamily = UINT32_MAX;
@@ -218,6 +226,7 @@ bool Application::pickPhysicalDevice() {
 			continue;
 		}
 
+		// Prefer discrete GPU
 		if (properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
 			m_physicalDevice = physicalDevice;
 			m_graphicsQueueFamily = graphicsFamily;
@@ -225,6 +234,7 @@ bool Application::pickPhysicalDevice() {
 			continue;
 		}
 
+		// Prepare to fallback to integrated GPU
 		SDL_Log("    suitable (non-discrete) keeping as fallback");
 		if (fallback == VK_NULL_HANDLE) {
 			fallback = physicalDevice;
@@ -232,11 +242,13 @@ bool Application::pickPhysicalDevice() {
 		}
 	}
 
+	// Fallback to integrated GPU
 	if (m_physicalDevice == VK_NULL_HANDLE) {
 		m_physicalDevice = fallback;
 		m_graphicsQueueFamily = fallbackFamily;
 	}
 
+	// No GPU found
 	if (m_physicalDevice == VK_NULL_HANDLE) {
 		SDL_Log("no suitable physical device found");
 		return false;
@@ -244,7 +256,7 @@ bool Application::pickPhysicalDevice() {
 
 	VkPhysicalDeviceProperties selected;
 	vkGetPhysicalDeviceProperties(m_physicalDevice, &selected);
-	SDL_Log("Using GPU: %s (queue family %u)", selected.deviceName, m_graphicsQueueFamily);
+	SDL_Log("using GPU: %s (queue family %u)", selected.deviceName, m_graphicsQueueFamily);
 
 	return true;
 }
@@ -380,8 +392,116 @@ bool Application::createDevice() {
 	volkLoadDevice(m_device);
 	vkGetDeviceQueue(m_device, m_graphicsQueueFamily, 0, &m_graphicsQueue);
 
-	SDL_Log("Logical device created, graphics queue from family %u", m_graphicsQueueFamily);
+	SDL_Log("logical device created, graphics queue from family %u", m_graphicsQueueFamily);
 	return true;
+}
+
+bool Application::createSwapchain() {
+	// Query surface capabilities
+	VkSurfaceCapabilitiesKHR capabilities{};
+	vkCheck(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_physicalDevice, m_surface, &capabilities));
+
+	// Choose image count
+	uint32_t imageCount = std::max(3u, capabilities.minImageCount);
+	if (capabilities.maxImageCount > 0) {
+		imageCount = std::min(imageCount, capabilities.maxImageCount);
+	}
+	SDL_Log("swapchain image count: %d", imageCount);
+
+	// Query available formats
+	std::vector<VkSurfaceFormatKHR> formats = vkEnumerate<VkSurfaceFormatKHR>(
+		vkGetPhysicalDeviceSurfaceFormatsKHR, m_physicalDevice, m_surface
+	);
+
+	// Check format is supported
+	bool formatSupported = false;
+	for (const VkSurfaceFormatKHR& surfaceFormat : formats) {
+		if (surfaceFormat.format == VK_FORMAT_B8G8R8A8_SRGB && surfaceFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+			formatSupported = true;
+			break;
+		}
+	}
+
+	// Log alternative formats upon failure
+	if (!formatSupported) {
+		SDL_Log("VK_FORMAT_B8G8R8A8_SRGB / SRGB_NONLINEAR not supported. Available:");
+		for (const VkSurfaceFormatKHR& surfaceFormat : formats) {
+			SDL_Log("  format %d, colorSpace %d", surfaceFormat.format, surfaceFormat.colorSpace);
+		}
+		return false;
+	}
+
+	// Determine extent (window size/resolution)
+	VkExtent2D extent;
+	if (capabilities.currentExtent.width != UINT32_MAX) {
+		extent = capabilities.currentExtent;
+	} else {
+		int pixelWidth = 0, pixelHeight = 0;
+		SDL_GetWindowSizeInPixels(m_window, &pixelWidth, &pixelHeight);
+		if (pixelWidth <= 0 || pixelHeight <= 0) {
+			SDL_Log("window has zero size, skipping swapchain creation");
+			return false;
+		}
+		extent.width = std::clamp(static_cast<uint32_t>(pixelWidth), capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
+		extent.height = std::clamp(static_cast<uint32_t>(pixelHeight), capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
+	}
+	SDL_Log("swapchain extent size: %d x %d", extent.width, extent.height);
+
+	// Fill swapchain info
+	VkSwapchainCreateInfoKHR info{};
+	info.sType            = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+	info.surface          = m_surface;
+	info.minImageCount    = imageCount;
+	info.imageFormat      = m_swapchainFormat;
+	info.imageColorSpace  = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+	info.imageExtent      = extent;
+	info.imageArrayLayers = 1;
+	info.imageUsage       = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+	info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	info.preTransform     = capabilities.currentTransform;
+	info.compositeAlpha   = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+	info.presentMode      = VK_PRESENT_MODE_FIFO_KHR;
+	info.clipped          = VK_TRUE;
+	info.oldSwapchain     = VK_NULL_HANDLE;
+
+	// Create swapchain
+	vkCheck(vkCreateSwapchainKHR(m_device, &info, nullptr, &m_swapchain));
+
+	// Retrieve swapchain images
+	m_swapchainImages = vkEnumerate<VkImage>(vkGetSwapchainImagesKHR, m_device, m_swapchain);
+	m_swapchainExtent = extent;
+
+	// Create an image view per image
+	m_swapchainImageViews.resize(m_swapchainImages.size());
+	for (size_t i = 0; i < m_swapchainImages.size(); i++) {
+		VkImageViewCreateInfo viewInfo{};
+		viewInfo.sType    = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		viewInfo.image    = m_swapchainImages[i];
+		viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		viewInfo.format   = m_swapchainFormat;
+		viewInfo.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+		viewInfo.subresourceRange.baseMipLevel   = 0;
+		viewInfo.subresourceRange.levelCount     = 1;
+		viewInfo.subresourceRange.baseArrayLayer = 0;
+		viewInfo.subresourceRange.layerCount     = 1;
+
+		vkCheck(vkCreateImageView(m_device, &viewInfo, nullptr, &m_swapchainImageViews[i]));
+	}
+}
+
+void Application::destroySwapchain() {
+	// Destroy image views
+	for (VkImageView view : m_swapchainImageViews) {
+		vkDestroyImageView(m_device, view, nullptr);
+	}
+	m_swapchainImageViews.clear();
+
+	// Destroy swapchain
+	if (m_swapchain) {
+		vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
+		m_swapchain = VK_NULL_HANDLE;
+	}
+	m_swapchainImages.clear();
 }
 
 VKAPI_ATTR VkBool32 VKAPI_CALL Application::debugCallback(
