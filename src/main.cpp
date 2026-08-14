@@ -2,19 +2,19 @@
 #include <SDL3/SDL_main.h>
 #include <cstdlib>
 
-int main(int argc, char* argv[]) {
-	(void)argc;
-	(void)argv;
+int main(int argc, char *argv[]) {
+    (void) argc;
+    (void) argv;
 
-	Application app;
+    Application app;
 
-	if (!app.init()) {
-		app.shutdown();
-		return EXIT_FAILURE;
-	}
+    if (!app.init()) {
+        app.shutdown();
+        return EXIT_FAILURE;
+    }
 
-	app.run();
-	app.shutdown();
+    app.run();
+    app.shutdown();
 
-	return EXIT_SUCCESS;
+    return EXIT_SUCCESS;
 }
