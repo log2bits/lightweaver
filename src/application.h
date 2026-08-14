@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <volk.h>
+#include "vk_backend.h"
 
 struct SDL_Window;
 
@@ -18,36 +19,18 @@ public:
 
 private:
 	bool initWindow();
-	bool initVulkan();
-	bool createInstance();
-	bool createSurface();
-	bool pickPhysicalDevice();
-	bool createDevice();
-	bool isDeviceSuitable(VkPhysicalDevice physicalDevice, uint32_t& outGraphicsFamily) const;
+	bool initBackend();
 	bool createSwapchain();
 	void destroySwapchain();
-
-	static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
-		VkDebugUtilsMessageSeverityFlagBitsEXT severity,
-		VkDebugUtilsMessageTypeFlagsEXT type,
-		const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-		void* pUserData
-	);
 
 	SDL_Window* m_window  = nullptr;
 	bool m_running = false;
 
-	VkInstance               m_instance            = VK_NULL_HANDLE;
-	VkDebugUtilsMessengerEXT m_messenger           = VK_NULL_HANDLE;
-	VkSurfaceKHR             m_surface             = VK_NULL_HANDLE;
-	VkPhysicalDevice         m_physicalDevice      = VK_NULL_HANDLE;
-	VkDevice                 m_device              = VK_NULL_HANDLE;
-	VkQueue                  m_graphicsQueue       = VK_NULL_HANDLE;
-	VkSwapchainKHR           m_swapchain           = VK_NULL_HANDLE;
-	VkFormat                 m_swapchainFormat     = VK_FORMAT_B8G8R8A8_SRGB;
+
+	VulkanBackend            m_backend = VulkanBackend();
+	VkSwapchainKHR           m_swapchain = VK_NULL_HANDLE;
+	VkFormat                 m_swapchainFormat = VK_FORMAT_B8G8R8A8_SRGB;
 	VkExtent2D               m_swapchainExtent{};
 	std::vector<VkImage>     m_swapchainImages;
 	std::vector<VkImageView> m_swapchainImageViews;
-
-	uint32_t                 m_graphicsQueueFamily = UINT32_MAX;
 };
