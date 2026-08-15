@@ -158,17 +158,59 @@ bool Application::createSwapchain() {
         vkCheck(vkCreateImageView(m_backend.device(), &viewInfo, nullptr, &m_swapchainImageViews[i]));
     }
 
+    VkImageCreateInfo depthImageInfo{};
+    depthImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    depthImageInfo.imageType = VK_IMAGE_TYPE_2D;
+    depthImageInfo.format = m_depthFormat;
+    depthImageInfo.extent = {extent.width, extent.height, 1};
+    depthImageInfo.mipLevels = 1;
+    depthImageInfo.arrayLayers = 1;
+    depthImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    depthImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    depthImageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    depthImageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+    VmaAllocationCreateInfo allocInfo{};
+    allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+    allocInfo.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
+    vkCheck(vmaCreateImage(m_backend.allocator(), &depthImageInfo, &allocInfo, &m_depthImage, &m_depthAllocation,
+                           nullptr));
+
+    VkImageViewCreateInfo depthViewInfo{};
+    depthViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    depthViewInfo.image = m_depthImage;
+    depthViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    depthViewInfo.format = m_depthFormat;
+    depthViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+    depthViewInfo.subresourceRange.baseMipLevel = 0;
+    depthViewInfo.subresourceRange.levelCount = 1;
+    depthViewInfo.subresourceRange.baseArrayLayer = 0;
+    depthViewInfo.subresourceRange.layerCount = 1;
+
+    vkCheck(vkCreateImageView(m_backend.device(), &depthViewInfo, nullptr, &m_depthImageView));
+
     return true;
 }
 
 void Application::destroySwapchain() {
-    // Destroy image views
+    // Depth buffer
+    if (m_depthImageView) {
+        vkDestroyImageView(m_backend.device(), m_depthImageView, nullptr);
+        m_depthImageView = VK_NULL_HANDLE;
+    }
+    if (m_depthImage) {
+        vmaDestroyImage(m_backend.allocator(), m_depthImage, m_depthAllocation);
+        m_depthImage = VK_NULL_HANDLE;
+        m_depthAllocation = VK_NULL_HANDLE;
+    }
+
+    // Swapchain image views
     for (VkImageView view: m_swapchainImageViews) {
         vkDestroyImageView(m_backend.device(), view, nullptr);
     }
     m_swapchainImageViews.clear();
 
-    // Destroy swapchain
+    // Swapchain
     if (m_swapchain) {
         vkDestroySwapchainKHR(m_backend.device(), m_swapchain, nullptr);
         m_swapchain = VK_NULL_HANDLE;

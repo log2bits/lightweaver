@@ -29,6 +29,10 @@ bool VulkanBackend::init(SDL_Window *window) {
 }
 
 void VulkanBackend::shutdown() {
+    if (m_allocator) {
+        vmaDestroyAllocator(m_allocator);
+        m_allocator = VK_NULL_HANDLE;
+    }
     if (m_device) {
         vkDestroyDevice(m_device, nullptr);
         m_device = VK_NULL_HANDLE;

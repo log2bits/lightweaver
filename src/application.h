@@ -39,4 +39,9 @@ private:
     VkExtent2D m_swapchainExtent{};
     std::vector<VkImage> m_swapchainImages;
     std::vector<VkImageView> m_swapchainImageViews;
+
+    VkImage m_depthImage = VK_NULL_HANDLE;
+    VkImageView m_depthImageView = VK_NULL_HANDLE;
+    VmaAllocation m_depthAllocation = VK_NULL_HANDLE;
+    VkFormat m_depthFormat = VK_FORMAT_D32_SFLOAT;
 };
