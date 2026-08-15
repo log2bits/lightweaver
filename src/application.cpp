@@ -17,7 +17,10 @@ bool Application::init() {
 void Application::shutdown() {
     destroySwapchain();
     m_backend.shutdown();
-    SDL_DestroyWindow(m_window);
+    if (m_window) {
+        SDL_DestroyWindow(m_window);
+        m_window = nullptr;
+    }
     SDL_Quit();
 }
 
@@ -68,7 +71,7 @@ bool Application::createSwapchain() {
     if (capabilities.maxImageCount > 0) {
         imageCount = std::min(imageCount, capabilities.maxImageCount);
     }
-    SDL_Log("swapchain image count: %d", imageCount);
+    SDL_Log("swapchain image count: %u", imageCount);
 
     // Query available formats
     std::vector<VkSurfaceFormatKHR> formats = vkEnumerate<VkSurfaceFormatKHR>(
@@ -89,7 +92,9 @@ bool Application::createSwapchain() {
     if (!formatSupported) {
         SDL_Log("VK_FORMAT_B8G8R8A8_SRGB / SRGB_NONLINEAR not supported. Available:");
         for (const VkSurfaceFormatKHR &surfaceFormat: formats) {
-            SDL_Log("  format %d, colorSpace %d", surfaceFormat.format, surfaceFormat.colorSpace);
+            SDL_Log("  %s / %s",
+                    string_VkFormat(surfaceFormat.format),
+                    string_VkColorSpaceKHR(surfaceFormat.colorSpace));
         }
         return false;
     }
@@ -110,7 +115,7 @@ bool Application::createSwapchain() {
         extent.height = std::clamp(static_cast<uint32_t>(pixelHeight), capabilities.minImageExtent.height,
                                    capabilities.maxImageExtent.height);
     }
-    SDL_Log("swapchain extent size: %d x %d", extent.width, extent.height);
+    SDL_Log("swapchain extent size: %u x %u", extent.width, extent.height);
 
     // Fill swapchain info
     VkSwapchainCreateInfoKHR info{};

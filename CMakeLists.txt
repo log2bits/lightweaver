@@ -38,7 +38,15 @@ FetchContent_Declare(
         GIT_SHALLOW TRUE
 )
 
-FetchContent_MakeAvailable(SDL3 glm volk)
+# VMA
+FetchContent_Declare(
+        vma
+        GIT_REPOSITORY https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
+        GIT_TAG v3.4.0
+        GIT_SHALLOW TRUE
+)
+
+FetchContent_MakeAvailable(SDL3 glm volk vma)
 
 add_executable(
         lightweaver
@@ -49,9 +57,10 @@ add_executable(
         src/vk_enumerate.h
         src/vk_backend.h
         src/vk_backend.cpp
+        src/vma_impl.cpp
 )
 
-target_link_libraries(lightweaver PRIVATE SDL3::SDL3-static glm::glm volk::volk)
+target_link_libraries(lightweaver PRIVATE SDL3::SDL3-static glm::glm volk::volk Vulkan::Headers GPUOpen::VulkanMemoryAllocator)
 target_compile_definitions(lightweaver PRIVATE VK_NO_PROTOTYPES)
 
 if (MSVC)

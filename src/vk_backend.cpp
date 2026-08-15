@@ -7,6 +7,7 @@
 #include <SDL3/SDL_error.h>
 #include <SDL3/SDL_log.h>
 #include <SDL3/SDL_vulkan.h>
+#include <vk_mem_alloc.h>
 
 
 bool VulkanBackend::init(SDL_Window *window) {
@@ -23,6 +24,7 @@ bool VulkanBackend::init(SDL_Window *window) {
     if (!createSurface(window)) return false;
     if (!pickPhysicalDevice()) return false;
     if (!createDevice()) return false;
+    if (!createAllocator()) return false;
     return true;
 }
 
@@ -326,6 +328,25 @@ bool VulkanBackend::createDevice() {
     vkGetDeviceQueue(m_device, m_graphicsQueueFamily, 0, &m_graphicsQueue);
 
     SDL_Log("logical device created, graphics queue from family %u", m_graphicsQueueFamily);
+    return true;
+}
+
+bool VulkanBackend::createAllocator() {
+    VmaVulkanFunctions functions{};
+
+    VmaAllocatorCreateInfo allocatorInfo{};
+    allocatorInfo.physicalDevice = m_physicalDevice;
+    allocatorInfo.device = m_device;
+    allocatorInfo.instance = m_instance;
+    allocatorInfo.vulkanApiVersion = VK_API_VERSION_1_3;
+    allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+
+    vmaImportVulkanFunctionsFromVolk(&allocatorInfo, &functions);
+    allocatorInfo.pVulkanFunctions = &functions;
+
+    vkCheck(vmaCreateAllocator(&allocatorInfo, &m_allocator));
+
+    SDL_Log("VMA allocator created");
     return true;
 }
 

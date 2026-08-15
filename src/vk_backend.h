@@ -1,5 +1,7 @@
 #pragma once
 #include <volk.h>
+#include <vk_mem_alloc.h>
+#include <volk.h>
 struct SDL_Window;
 
 class VulkanBackend {
@@ -34,6 +36,8 @@ private:
 
     bool createDevice();
 
+    bool createAllocator();
+
     static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
         VkDebugUtilsMessageSeverityFlagBitsEXT severity,
         VkDebugUtilsMessageTypeFlagsEXT type,
@@ -47,4 +51,5 @@ private:
     VkDevice m_device = VK_NULL_HANDLE;
     VkQueue m_graphicsQueue = VK_NULL_HANDLE;
     uint32_t m_graphicsQueueFamily = UINT32_MAX;
+    VmaAllocator m_allocator;
 };
