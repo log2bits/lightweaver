@@ -4,11 +4,11 @@ A real-time, physically based **deferred renderer** built from scratch in C++ an
 
 The goal is a real time renderer written and optimized by hand to learn the API end to end, and get familiar with GPU profiling.
 
-## Features & roadmap
+## Planned Features
 
 **Lighting & materials**
-- [ ] PBR materials — metallic/roughness workflow, normal mapping
-- [ ] Point lights — clustered/froxel light culling *(later)*
+- [ ] PBR materials - metallic/roughness, normal mapping
+- [ ] Point lights - clustered/froxel light culling *(later)*
 - [ ] Directional sunlight
 - [ ] Shadow mapping with PCF - cascaded shadow maps *(later)*
 - [ ] Ambient occlusion (GTAO)
@@ -28,7 +28,7 @@ The goal is a real time renderer written and optimized by hand to learn the API 
 - [ ] Screen-space refraction for glass - UV displacement
 
 **Post-processing**
-- [ ] HDR pipeline + tonemapping (AgX)
+- [ ] HDR pipeline + tonemapping (OpenDRT or similar)
 - [ ] Bloom - progressive down/up mip chain
 - [ ] Anti-aliasing (MSAA or TAA)
 
