@@ -62,14 +62,14 @@ bool VulkanBackend::createInstance() {
     appInfo.apiVersion = VK_API_VERSION_1_3;
 
     // Build extension list
-    uint32_t sdlExtCount = 0;
-    const char *const*sdlExts = SDL_Vulkan_GetInstanceExtensions(&sdlExtCount);
-    if (!sdlExts) {
+    uint32_t extension_count = 0;
+    const char* const* extensions_begin = SDL_Vulkan_GetInstanceExtensions(&extension_count);
+    if (!extensions_begin) {
         SDL_Log("SDL_Vulkan_GetInstanceExtensions failed: %s", SDL_GetError());
         return false;
     }
 
-    std::vector<const char *> extensions(sdlExts, sdlExts + sdlExtCount);
+    std::vector<const char*> extensions(extensions_begin, extensions_begin + extension_count);
     extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 
 #ifdef __APPLE__
@@ -77,12 +77,12 @@ bool VulkanBackend::createInstance() {
 #endif
 
     SDL_Log("found %zu instance extensions:", extensions.size());
-    for (const char *ext: extensions) {
-        SDL_Log("  %s", ext);
+    for (const char *extension: extensions) {
+        SDL_Log("  %s", extension);
     }
 
     // Build layer list
-    std::vector<const char *> valid_layers = {"VK_LAYER_KHRONOS_validation"};
+    std::vector<const char*> valid_layers = {"VK_LAYER_KHRONOS_validation"};
     std::vector<VkLayerProperties> layers = vkEnumerate<VkLayerProperties>(vkEnumerateInstanceLayerProperties);
 
     SDL_Log("found %zu instance layers:", layers.size());
