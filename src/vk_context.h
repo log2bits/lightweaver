@@ -3,19 +3,15 @@
 #include <vk_mem_alloc.h>
 struct SDL_Window;
 
-class VulkanBackend {
+class VulkanContext {
 public:
-    VulkanBackend() = default;
+    explicit VulkanContext(SDL_Window* window);
+    ~VulkanContext();
 
-    ~VulkanBackend() = default;
-
-    VulkanBackend(const VulkanBackend &) = delete; // copy constructor (doesnt exist yet)
-    VulkanBackend &operator=(const VulkanBackend &) = delete; // copy assignment (getting overwritten)
-
-    bool init(SDL_Window *window);
-
-    void shutdown();
-
+    VulkanContext(const VulkanContext&) = delete;
+    VulkanContext& operator=(const VulkanContext&) = delete;
+    VulkanContext(VulkanContext&&) = delete;
+    VulkanContext& operator=(VulkanContext&&) = delete;
 
     VkInstance instance() const { return m_instance; }
     VkSurfaceKHR surface() const { return m_surface; }
@@ -26,23 +22,19 @@ public:
     VmaAllocator allocator() const { return m_allocator; }
 
 private:
-    bool createInstance();
+    void createInstance();
+    void createSurface(SDL_Window* window);
+    void pickPhysicalDevice();
+    bool isDeviceSuitable(VkPhysicalDevice, uint32_t& outFamily) const;
+    void createDevice();
+    void createAllocator();
 
-    bool createSurface(SDL_Window *window);
+    void destroy() noexcept;
 
-    bool pickPhysicalDevice();
-
-    bool isDeviceSuitable(VkPhysicalDevice, uint32_t &outFamily) const;
-
-    bool createDevice();
-
-    bool createAllocator();
-
-    static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
-        VkDebugUtilsMessageSeverityFlagBitsEXT severity,
-        VkDebugUtilsMessageTypeFlagsEXT type,
-        const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
-        void *pUserData);
+    static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
+                                                        VkDebugUtilsMessageTypeFlagsEXT type,
+                                                        const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+                                                        void* pUserData);
 
     VkInstance m_instance = VK_NULL_HANDLE;
     VkDebugUtilsMessengerEXT m_messenger = VK_NULL_HANDLE;

@@ -1,47 +1,24 @@
 #pragma once
-#include <vector>
-#include <volk.h>
-#include "vk_backend.h"
 
-struct SDL_Window;
+#include "vk_context.h"
+#include "vk_swapchain.h"
+#include "window.h"
 
 class Application {
 public:
-    Application() = default;
-
+    Application();
     ~Application() = default;
 
-    Application(const Application &) = delete; // copy constructor (doesnt exist yet)
-    Application &operator=(const Application &) = delete; // copy assignment (getting overwritten)
-
-    bool init();
+    Application(const Application&) = delete;
+    Application& operator=(const Application&) = delete;
+    Application(Application&&) = delete;
+    Application& operator=(Application&&) = delete;
 
     void run();
 
-    void shutdown();
-
 private:
-    bool initWindow();
-
-    bool initBackend();
-
-    bool createSwapchain();
-
-    void destroySwapchain();
-
-    SDL_Window *m_window = nullptr;
+    Window m_window;
+    VulkanContext m_context;
+    VulkanSwapchain m_swapchain;
     bool m_running = false;
-
-
-    VulkanBackend m_backend;
-    VkSwapchainKHR m_swapchain = VK_NULL_HANDLE;
-    VkFormat m_swapchainFormat = VK_FORMAT_B8G8R8A8_SRGB;
-    VkExtent2D m_swapchainExtent{};
-    std::vector<VkImage> m_swapchainImages;
-    std::vector<VkImageView> m_swapchainImageViews;
-
-    VkImage m_depthImage = VK_NULL_HANDLE;
-    VkImageView m_depthImageView = VK_NULL_HANDLE;
-    VmaAllocation m_depthAllocation = VK_NULL_HANDLE;
-    VkFormat m_depthFormat = VK_FORMAT_D32_SFLOAT;
 };

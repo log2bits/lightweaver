@@ -55,9 +55,12 @@ add_executable(
         src/application.cpp
         src/vk_check.h
         src/vk_enumerate.h
-        src/vk_backend.h
-        src/vk_backend.cpp
-        src/vma_impl.cpp
+        src/vk_context.h
+        src/vk_context.cpp
+        src/window.h
+        src/window.cpp
+        src/vk_swapchain.h
+        src/vk_swapchain.cpp
 )
 
 target_link_libraries(lightweaver PRIVATE SDL3::SDL3-static glm::glm volk::volk Vulkan::Headers GPUOpen::VulkanMemoryAllocator)

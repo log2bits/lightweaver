@@ -1,4 +1,4 @@
-#include "vk_backend.h"
+#include "vk_context.h"
 #include <cstring>
 #include <vector>
 #include "vk_check.h"
@@ -8,27 +8,34 @@
 #include <SDL3/SDL_log.h>
 #include <SDL3/SDL_vulkan.h>
 #include <vk_mem_alloc.h>
+#include <stdexcept>
 
-
-bool VulkanBackend::init(SDL_Window *window) {
+VulkanContext::VulkanContext(SDL_Window* window) {
     if (volkInitialize() != VK_SUCCESS) {
-        SDL_Log("volkInitialize failed, is the Vulkan runtime installed?");
-        return false;
+        throw std::runtime_error("volkInitialize failed, is the Vulkan runtime installed?");
     }
 
     uint32_t const v = volkGetInstanceVersion();
-    SDL_Log("volk initialized, instance version: %u.%u.%u",
-            VK_API_VERSION_MAJOR(v), VK_API_VERSION_MINOR(v), VK_API_VERSION_PATCH(v));
+    SDL_Log("volk initialized, instance version: %u.%u.%u", VK_API_VERSION_MAJOR(v), VK_API_VERSION_MINOR(v),
+            VK_API_VERSION_PATCH(v));
 
-    if (!createInstance()) return false;
-    if (!createSurface(window)) return false;
-    if (!pickPhysicalDevice()) return false;
-    if (!createDevice()) return false;
-    if (!createAllocator()) return false;
-    return true;
+    try {
+        createInstance();
+        createSurface(window);
+        pickPhysicalDevice();
+        createDevice();
+        createAllocator();
+    } catch (...) {
+        destroy();
+        throw;
+    }
 }
 
-void VulkanBackend::shutdown() {
+VulkanContext::~VulkanContext() {
+    destroy();
+}
+
+void VulkanContext::destroy() noexcept {
     if (m_allocator) {
         vmaDestroyAllocator(m_allocator);
         m_allocator = VK_NULL_HANDLE;
@@ -51,7 +58,7 @@ void VulkanBackend::shutdown() {
     }
 }
 
-bool VulkanBackend::createInstance() {
+void VulkanContext::createInstance() {
     // Describe application
     VkApplicationInfo appInfo{};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -62,14 +69,13 @@ bool VulkanBackend::createInstance() {
     appInfo.apiVersion = VK_API_VERSION_1_3;
 
     // Build extension list
-    uint32_t extension_count = 0;
-    const char* const* extensions_begin = SDL_Vulkan_GetInstanceExtensions(&extension_count);
-    if (!extensions_begin) {
-        SDL_Log("SDL_Vulkan_GetInstanceExtensions failed: %s", SDL_GetError());
-        return false;
+    uint32_t extensionCount = 0;
+    const char* const* extensionsBegin = SDL_Vulkan_GetInstanceExtensions(&extensionCount);
+    if (!extensionsBegin) {
+        throw std::runtime_error(std::string("SDL_Vulkan_GetInstanceExtensions failed: ") + SDL_GetError());
     }
 
-    std::vector<const char*> extensions(extensions_begin, extensions_begin + extension_count);
+    std::vector<const char*> extensions(extensionsBegin, extensionsBegin + extensionCount);
     extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 
 #ifdef __APPLE__
@@ -77,38 +83,36 @@ bool VulkanBackend::createInstance() {
 #endif
 
     SDL_Log("found %zu instance extensions:", extensions.size());
-    for (const char *extension: extensions) {
+    for (const char* extension : extensions) {
         SDL_Log("  %s", extension);
     }
 
     // Build layer list
-    std::vector<const char*> valid_layers = {"VK_LAYER_KHRONOS_validation"};
+    std::vector<const char*> requestedLayers = {"VK_LAYER_KHRONOS_validation"};
     std::vector<VkLayerProperties> layers = vkEnumerate<VkLayerProperties>(vkEnumerateInstanceLayerProperties);
 
     SDL_Log("found %zu instance layers:", layers.size());
     bool validationFound = false;
-    for (const VkLayerProperties &layerProperties: layers) {
+    for (const VkLayerProperties& layerProperties : layers) {
         SDL_Log("  %s", layerProperties.layerName);
-        if (std::strcmp(layerProperties.layerName, valid_layers[0]) == 0) {
+        if (std::strcmp(layerProperties.layerName, requestedLayers[0]) == 0) {
             validationFound = true;
         }
     }
 
     if (!validationFound) {
         SDL_Log("validation layer unavailable, continuing without it");
-        valid_layers.clear();
+        requestedLayers.clear();
     }
 
     // Describe the debugger
     VkDebugUtilsMessengerCreateInfoEXT debugInfo{};
     debugInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
     debugInfo.messageSeverity =
-            VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
-            VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-    debugInfo.messageType =
-            VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
-            VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
-            VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+        VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+    debugInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+                            VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+                            VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
     debugInfo.pfnUserCallback = debugCallback;
     debugInfo.pUserData = this;
 
@@ -119,8 +123,8 @@ bool VulkanBackend::createInstance() {
     createInfo.pApplicationInfo = &appInfo;
     createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
     createInfo.ppEnabledExtensionNames = extensions.data();
-    createInfo.enabledLayerCount = static_cast<uint32_t>(valid_layers.size());
-    createInfo.ppEnabledLayerNames = valid_layers.data();
+    createInfo.enabledLayerCount = static_cast<uint32_t>(requestedLayers.size());
+    createInfo.ppEnabledLayerNames = requestedLayers.data();
 
 #ifdef __APPLE__
     createInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
@@ -134,28 +138,24 @@ bool VulkanBackend::createInstance() {
 
     // Create the persistent messenger
     vkCheck(vkCreateDebugUtilsMessengerEXT(m_instance, &debugInfo, nullptr, &m_messenger));
-
-    return true;
 }
 
-bool VulkanBackend::createSurface(SDL_Window *window) {
+void VulkanContext::createSurface(SDL_Window* window) {
     if (!SDL_Vulkan_CreateSurface(window, m_instance, nullptr, &m_surface)) {
-        SDL_Log("SDL_Vulkan_CreateSurface failed: %s", SDL_GetError());
-        return false;
+        throw std::runtime_error(std::string("SDL_Vulkan_CreateSurface failed: ") + SDL_GetError());
     }
-    return true;
 }
 
-bool VulkanBackend::pickPhysicalDevice() {
-    std::vector<VkPhysicalDevice> physicalDevices = vkEnumerate<VkPhysicalDevice>(
-        vkEnumeratePhysicalDevices, m_instance);
+void VulkanContext::pickPhysicalDevice() {
+    std::vector<VkPhysicalDevice> physicalDevices =
+        vkEnumerate<VkPhysicalDevice>(vkEnumeratePhysicalDevices, m_instance);
 
     SDL_Log("found %zu physical devices:", physicalDevices.size());
 
     VkPhysicalDevice fallback = VK_NULL_HANDLE;
     uint32_t fallbackFamily = UINT32_MAX;
 
-    for (const VkPhysicalDevice &physicalDevice: physicalDevices) {
+    for (const VkPhysicalDevice& physicalDevice : physicalDevices) {
         VkPhysicalDeviceProperties properties;
         vkGetPhysicalDeviceProperties(physicalDevice, &properties);
         SDL_Log("  %s", properties.deviceName);
@@ -189,18 +189,15 @@ bool VulkanBackend::pickPhysicalDevice() {
 
     // No GPU found
     if (m_physicalDevice == VK_NULL_HANDLE) {
-        SDL_Log("no suitable physical device found");
-        return false;
+        throw std::runtime_error("no suitable physical device found");
     }
 
     VkPhysicalDeviceProperties selected;
     vkGetPhysicalDeviceProperties(m_physicalDevice, &selected);
     SDL_Log("using GPU: %s (queue family %u)", selected.deviceName, m_graphicsQueueFamily);
-
-    return true;
 }
 
-bool VulkanBackend::isDeviceSuitable(VkPhysicalDevice physicalDevice, uint32_t &outGraphicsFamily) const {
+bool VulkanContext::isDeviceSuitable(VkPhysicalDevice physicalDevice, uint32_t& outGraphicsFamily) const {
     VkPhysicalDeviceProperties properties;
     vkGetPhysicalDeviceProperties(physicalDevice, &properties);
 
@@ -212,8 +209,7 @@ bool VulkanBackend::isDeviceSuitable(VkPhysicalDevice physicalDevice, uint32_t &
 
     // 2. A queue family supporting both graphics and presentation
     std::vector<VkQueueFamilyProperties> queueFamilies =
-            vkEnumerate<VkQueueFamilyProperties>(
-                vkGetPhysicalDeviceQueueFamilyProperties, physicalDevice);
+        vkEnumerate<VkQueueFamilyProperties>(vkGetPhysicalDeviceQueueFamilyProperties, physicalDevice);
 
     uint32_t graphicsFamily = UINT32_MAX;
     for (uint32_t i = 0; i < queueFamilies.size(); i++) {
@@ -232,11 +228,10 @@ bool VulkanBackend::isDeviceSuitable(VkPhysicalDevice physicalDevice, uint32_t &
 
     // 3. Swapchain extension
     std::vector<VkExtensionProperties> extensions =
-            vkEnumerate<VkExtensionProperties>(
-                vkEnumerateDeviceExtensionProperties, physicalDevice, nullptr);
+        vkEnumerate<VkExtensionProperties>(vkEnumerateDeviceExtensionProperties, physicalDevice, nullptr);
 
     bool hasSwapchain = false;
-    for (const VkExtensionProperties &extension: extensions) {
+    for (const VkExtensionProperties& extension : extensions) {
         if (std::strcmp(extension.extensionName, VK_KHR_SWAPCHAIN_EXTENSION_NAME) == 0) {
             hasSwapchain = true;
             break;
@@ -274,7 +269,7 @@ bool VulkanBackend::isDeviceSuitable(VkPhysicalDevice physicalDevice, uint32_t &
     return true;
 }
 
-bool VulkanBackend::createDevice() {
+void VulkanContext::createDevice() {
     // Features to enable
     VkPhysicalDeviceVulkan13Features features13{};
     features13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
@@ -301,14 +296,13 @@ bool VulkanBackend::createDevice() {
     queueInfo.pQueuePriorities = &queuePriority;
 
     // Device extensions
-    std::vector<const char *> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+    std::vector<const char*> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
 #ifdef __APPLE__
     std::vector<VkExtensionProperties> available =
-            vkEnumerate<VkExtensionProperties>(
-                vkEnumerateDeviceExtensionProperties, m_physicalDevice, nullptr);
+        vkEnumerate<VkExtensionProperties>(vkEnumerateDeviceExtensionProperties, m_physicalDevice, nullptr);
 
-    for (const VkExtensionProperties &extension: available) {
+    for (const VkExtensionProperties& extension : available) {
         if (std::strcmp(extension.extensionName, "VK_KHR_portability_subset") == 0) {
             deviceExtensions.push_back("VK_KHR_portability_subset");
             break;
@@ -332,10 +326,9 @@ bool VulkanBackend::createDevice() {
     vkGetDeviceQueue(m_device, m_graphicsQueueFamily, 0, &m_graphicsQueue);
 
     SDL_Log("logical device created, graphics queue from family %u", m_graphicsQueueFamily);
-    return true;
 }
 
-bool VulkanBackend::createAllocator() {
+void VulkanContext::createAllocator() {
     VmaVulkanFunctions functions{};
 
     VmaAllocatorCreateInfo allocatorInfo{};
@@ -351,17 +344,14 @@ bool VulkanBackend::createAllocator() {
     vkCheck(vmaCreateAllocator(&allocatorInfo, &m_allocator));
 
     SDL_Log("VMA allocator created");
-    return true;
 }
 
-
-VKAPI_ATTR VkBool32 VKAPI_CALL VulkanBackend::debugCallback(
-    VkDebugUtilsMessageSeverityFlagBitsEXT severity,
-    VkDebugUtilsMessageTypeFlagsEXT type,
-    const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
-    void *pUserData) {
-    (void) type;
-    (void) pUserData;
+VKAPI_ATTR VkBool32 VKAPI_CALL VulkanContext::debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
+                                                            VkDebugUtilsMessageTypeFlagsEXT type,
+                                                            const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+                                                            void* pUserData) {
+    (void)type;
+    (void)pUserData;
 
     if (severity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
         SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "[vk] %s", pCallbackData->pMessage);
