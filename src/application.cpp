@@ -1,7 +1,7 @@
 #include "application.h"
 #include <SDL3/SDL.h>
 
-Application::Application() : m_window("Lightweaver", 1280, 720), m_context(m_window.handle()), m_swapchain(m_window, m_context) {}
+Application::Application() : m_window("Lightweaver", 1280, 720), m_context(m_window.handle()), m_swapchain(m_window, m_context), m_renderer(m_context, m_swapchain) {}
 
 void Application::run() {
     m_running = true;

@@ -2,6 +2,7 @@
 
 #include "vk_context.h"
 #include "vk_swapchain.h"
+#include "vk_renderer.h"
 #include "window.h"
 
 class Application {
@@ -20,5 +21,6 @@ private:
     Window m_window;
     VulkanContext m_context;
     VulkanSwapchain m_swapchain;
+    VulkanRenderer m_renderer;
     bool m_running = false;
 };

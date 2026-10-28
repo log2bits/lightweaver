@@ -15,52 +15,55 @@ set(SDL_SHARED OFF CACHE BOOL "" FORCE)
 set(SDL_STATIC ON CACHE BOOL "" FORCE)
 set(SDL_TEST_LIBRARY OFF CACHE BOOL "" FORCE)
 FetchContent_Declare(
-        SDL3
-        GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
-        GIT_TAG release-3.2.0
-        GIT_SHALLOW TRUE
+	SDL3
+	GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
+	GIT_TAG release-3.2.0
+	GIT_SHALLOW TRUE
 )
 
 # glm
 FetchContent_Declare(
-        glm
-        GIT_REPOSITORY https://github.com/g-truc/glm.git
-        GIT_TAG 1.0.1
-        GIT_SHALLOW TRUE
+	glm
+	GIT_REPOSITORY https://github.com/g-truc/glm.git
+	GIT_TAG 1.0.1
+	GIT_SHALLOW TRUE
 )
 
 # Vulkan
 find_package(Vulkan REQUIRED)
 FetchContent_Declare(
-        volk
-        GIT_REPOSITORY https://github.com/zeux/volk.git
-        GIT_TAG 1.4.350
-        GIT_SHALLOW TRUE
+	volk
+	GIT_REPOSITORY https://github.com/zeux/volk.git
+	GIT_TAG 1.4.350
+	GIT_SHALLOW TRUE
 )
 
 # VMA
 FetchContent_Declare(
-        vma
-        GIT_REPOSITORY https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
-        GIT_TAG v3.4.0
-        GIT_SHALLOW TRUE
+	vma
+	GIT_REPOSITORY https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
+	GIT_TAG v3.4.0
+	GIT_SHALLOW TRUE
 )
 
 FetchContent_MakeAvailable(SDL3 glm volk vma)
 
 add_executable(
-        lightweaver
-        src/main.cpp
-        src/application.h
-        src/application.cpp
-        src/vk_check.h
-        src/vk_enumerate.h
-        src/vk_context.h
-        src/vk_context.cpp
-        src/window.h
-        src/window.cpp
-        src/vk_swapchain.h
-        src/vk_swapchain.cpp
+	lightweaver
+	src/main.cpp
+	src/application.h
+	src/application.cpp
+	src/vk_check.h
+	src/vk_enumerate.h
+	src/vk_context.h
+	src/vk_context.cpp
+	src/window.h
+	src/window.cpp
+	src/vk_swapchain.h
+	src/vk_swapchain.cpp
+	src/vk_renderer.cpp
+	src/vk_renderer.h
+	src/vma_impl.cpp
 )
 
 target_link_libraries(lightweaver PRIVATE SDL3::SDL3-static glm::glm volk::volk Vulkan::Headers GPUOpen::VulkanMemoryAllocator)
