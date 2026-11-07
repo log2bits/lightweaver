@@ -64,6 +64,7 @@ add_executable(
 	src/vk_renderer.cpp
 	src/vk_renderer.h
 	src/vma_impl.cpp
+	src/fatal.h
 )
 
 target_link_libraries(lightweaver PRIVATE SDL3::SDL3-static glm::glm volk::volk Vulkan::Headers GPUOpen::VulkanMemoryAllocator)

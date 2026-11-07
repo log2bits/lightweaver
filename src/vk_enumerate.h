@@ -3,7 +3,6 @@
 #include <volk.h>
 #include <vector>
 #include <type_traits>
-
 #include "vk_check.h"
 
 template <typename T, typename Fn, typename... Args>

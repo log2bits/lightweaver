@@ -8,27 +8,22 @@
 #include <SDL3/SDL_log.h>
 #include <SDL3/SDL_vulkan.h>
 #include <vk_mem_alloc.h>
-#include <stdexcept>
+#include "fatal.h"
 
 VulkanContext::VulkanContext(SDL_Window* window) {
     if (volkInitialize() != VK_SUCCESS) {
-        throw std::runtime_error("volkInitialize failed, is the Vulkan runtime installed?");
+        fatal("volkInitialize failed, is the Vulkan runtime installed?");
     }
 
     uint32_t const v = volkGetInstanceVersion();
     SDL_Log("volk initialized, instance version: %u.%u.%u", VK_API_VERSION_MAJOR(v), VK_API_VERSION_MINOR(v),
             VK_API_VERSION_PATCH(v));
 
-    try {
-        createInstance();
-        createSurface(window);
-        pickPhysicalDevice();
-        createDevice();
-        createAllocator();
-    } catch (...) {
-        destroy();
-        throw;
-    }
+    createInstance();
+    createSurface(window);
+    pickPhysicalDevice();
+    createDevice();
+    createAllocator();
 }
 
 VulkanContext::~VulkanContext() {
@@ -72,7 +67,7 @@ void VulkanContext::createInstance() {
     uint32_t extensionCount = 0;
     const char* const* extensionsBegin = SDL_Vulkan_GetInstanceExtensions(&extensionCount);
     if (!extensionsBegin) {
-        throw std::runtime_error(std::string("SDL_Vulkan_GetInstanceExtensions failed: ") + SDL_GetError());
+        fatal(std::string("SDL_Vulkan_GetInstanceExtensions failed: ") + SDL_GetError());
     }
 
     std::vector<const char*> extensions(extensionsBegin, extensionsBegin + extensionCount);
@@ -142,7 +137,7 @@ void VulkanContext::createInstance() {
 
 void VulkanContext::createSurface(SDL_Window* window) {
     if (!SDL_Vulkan_CreateSurface(window, m_instance, nullptr, &m_surface)) {
-        throw std::runtime_error(std::string("SDL_Vulkan_CreateSurface failed: ") + SDL_GetError());
+        fatal(std::string("SDL_Vulkan_CreateSurface failed: ") + SDL_GetError());
     }
 }
 
@@ -189,7 +184,7 @@ void VulkanContext::pickPhysicalDevice() {
 
     // No GPU found
     if (m_physicalDevice == VK_NULL_HANDLE) {
-        throw std::runtime_error("no suitable physical device found");
+        fatal("no suitable physical device found");
     }
 
     VkPhysicalDeviceProperties selected;

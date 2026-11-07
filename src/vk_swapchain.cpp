@@ -6,16 +6,11 @@
 #include <volk.h>
 #include <vulkan/vk_enum_string_helper.h>
 #include <SDL3/SDL.h>
-#include <stdexcept>
+#include "fatal.h"
 #include <string>
 
 VulkanSwapchain::VulkanSwapchain(const Window& window, const VulkanContext& context) : m_window(window), m_context(context) {
-    try {
-        create();
-    } catch (...) {
-        destroy();
-        throw;
-    }
+    create();
 }
 
 void VulkanSwapchain::create() {
@@ -51,7 +46,7 @@ void VulkanSwapchain::create() {
         for (const VkSurfaceFormatKHR& surfaceFormat : formats) {
             error += std::format("  {} / {}\n", string_VkFormat(surfaceFormat.format), string_VkColorSpaceKHR(surfaceFormat.colorSpace));
         }
-        throw std::runtime_error(error);
+        fatal(error);
     }
 
     // Determine extent (window size/resolution)
