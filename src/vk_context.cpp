@@ -55,13 +55,14 @@ void VulkanContext::destroy() noexcept {
 
 void VulkanContext::createInstance() {
     // Describe application
-    VkApplicationInfo appInfo{};
-    appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    appInfo.pApplicationName = "Lightweaver";
-    appInfo.applicationVersion = VK_MAKE_API_VERSION(0, 0, 1, 0);
-    appInfo.pEngineName = "Lightweaver";
-    appInfo.engineVersion = VK_MAKE_API_VERSION(0, 0, 1, 0);
-    appInfo.apiVersion = VK_API_VERSION_1_3;
+    const VkApplicationInfo appInfo{
+        .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
+        .pApplicationName = "Lightweaver",
+        .applicationVersion = VK_MAKE_API_VERSION(0, 0, 1, 0),
+        .pEngineName = "Lightweaver",
+        .engineVersion = VK_MAKE_API_VERSION(0, 0, 1, 0),
+        .apiVersion = VK_API_VERSION_1_3,
+    };
 
     // Build extension list
     uint32_t extensionCount = 0;
@@ -73,8 +74,11 @@ void VulkanContext::createInstance() {
     std::vector<const char*> extensions(extensionsBegin, extensionsBegin + extensionCount);
     extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 
+    VkInstanceCreateFlags instanceFlags = 0;
+
 #ifdef __APPLE__
     extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+    instanceFlags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
 #endif
 
     SDL_Log("found %zu instance extensions:", extensions.size());
@@ -101,32 +105,29 @@ void VulkanContext::createInstance() {
     }
 
     // Describe the debugger
-    VkDebugUtilsMessengerCreateInfoEXT debugInfo{};
-    debugInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-    debugInfo.messageSeverity =
-        VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-    debugInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
-                            VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
-                            VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-    debugInfo.pfnUserCallback = debugCallback;
-    debugInfo.pUserData = this;
+    const VkDebugUtilsMessengerCreateInfoEXT debugInfo{
+        .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
+        .messageSeverity =
+            VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
+        .messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+                       VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
+        .pfnUserCallback = debugCallback,
+        .pUserData = this,
+    };
 
-    // Describe the instance
-    VkInstanceCreateInfo createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-    createInfo.pNext = &debugInfo;
-    createInfo.pApplicationInfo = &appInfo;
-    createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
-    createInfo.ppEnabledExtensionNames = extensions.data();
-    createInfo.enabledLayerCount = static_cast<uint32_t>(requestedLayers.size());
-    createInfo.ppEnabledLayerNames = requestedLayers.data();
-
-#ifdef __APPLE__
-    createInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
-#endif
-
-    // Create it
-    vkCheck(vkCreateInstance(&createInfo, nullptr, &m_instance));
+    { // INSTANCE
+        const VkInstanceCreateInfo info{
+            .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+            .pNext = &debugInfo,
+            .flags = instanceFlags,
+            .pApplicationInfo = &appInfo,
+            .enabledLayerCount = static_cast<uint32_t>(requestedLayers.size()),
+            .ppEnabledLayerNames = requestedLayers.data(),
+            .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
+            .ppEnabledExtensionNames = extensions.data(),
+        };
+        vkCheck(vkCreateInstance(&info, nullptr, &m_instance));
+    }
 
     // Load every function pointer from the new instance
     volkLoadInstance(m_instance);
@@ -238,16 +239,19 @@ bool VulkanContext::isDeviceSuitable(VkPhysicalDevice physicalDevice, uint32_t& 
     }
 
     // 4. Required Vulkan 1.2 / 1.3 features
-    VkPhysicalDeviceVulkan13Features features13{};
-    features13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+    VkPhysicalDeviceVulkan13Features features13{
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
+    };
 
-    VkPhysicalDeviceVulkan12Features features12{};
-    features12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
-    features12.pNext = &features13;
+    VkPhysicalDeviceVulkan12Features features12{
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
+        .pNext = &features13,
+    };
 
-    VkPhysicalDeviceFeatures2 features2{};
-    features2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-    features2.pNext = &features12;
+    VkPhysicalDeviceFeatures2 features2{
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
+        .pNext = &features12,
+    };
 
     vkGetPhysicalDeviceFeatures2(physicalDevice, &features2);
 
@@ -266,29 +270,33 @@ bool VulkanContext::isDeviceSuitable(VkPhysicalDevice physicalDevice, uint32_t& 
 
 void VulkanContext::createDevice() {
     // Features to enable
-    VkPhysicalDeviceVulkan13Features features13{};
-    features13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
-    features13.dynamicRendering = VK_TRUE;
-    features13.synchronization2 = VK_TRUE;
+    VkPhysicalDeviceVulkan13Features features13{
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
+        .synchronization2 = VK_TRUE,
+        .dynamicRendering = VK_TRUE,
+    };
 
-    VkPhysicalDeviceVulkan12Features features12{};
-    features12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
-    features12.timelineSemaphore = VK_TRUE;
-    features12.bufferDeviceAddress = VK_TRUE;
-    features12.pNext = &features13;
+    VkPhysicalDeviceVulkan12Features features12{
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
+        .pNext = &features13,
+        .timelineSemaphore = VK_TRUE,
+        .bufferDeviceAddress = VK_TRUE,
+    };
 
-    VkPhysicalDeviceFeatures2 features2{};
-    features2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-    features2.pNext = &features12;
+    VkPhysicalDeviceFeatures2 features2{
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
+        .pNext = &features12,
+    };
 
     // One graphics queue
-    float queuePriority = 1.0f;
+    const float queuePriority = 1.0f;
 
-    VkDeviceQueueCreateInfo queueInfo{};
-    queueInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    queueInfo.queueFamilyIndex = m_graphicsQueueFamily;
-    queueInfo.queueCount = 1;
-    queueInfo.pQueuePriorities = &queuePriority;
+    const VkDeviceQueueCreateInfo queueInfo{
+        .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+        .queueFamilyIndex = m_graphicsQueueFamily,
+        .queueCount = 1,
+        .pQueuePriorities = &queuePriority,
+    };
 
     // Device extensions
     std::vector<const char*> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
@@ -305,17 +313,17 @@ void VulkanContext::createDevice() {
     }
 #endif
 
-    // Create the device
-    VkDeviceCreateInfo deviceInfo{};
-    deviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    deviceInfo.pNext = &features2;
-    deviceInfo.queueCreateInfoCount = 1;
-    deviceInfo.pQueueCreateInfos = &queueInfo;
-    deviceInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
-    deviceInfo.ppEnabledExtensionNames = deviceExtensions.data();
-    deviceInfo.pEnabledFeatures = nullptr;
-
-    vkCheck(vkCreateDevice(m_physicalDevice, &deviceInfo, nullptr, &m_device));
+    { // DEVICE
+        const VkDeviceCreateInfo info{
+            .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+            .pNext = &features2,
+            .queueCreateInfoCount = 1,
+            .pQueueCreateInfos = &queueInfo,
+            .enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size()),
+            .ppEnabledExtensionNames = deviceExtensions.data(),
+        };
+        vkCheck(vkCreateDevice(m_physicalDevice, &info, nullptr, &m_device));
+    }
 
     volkLoadDevice(m_device);
     vkGetDeviceQueue(m_device, m_graphicsQueueFamily, 0, &m_graphicsQueue);
@@ -326,17 +334,18 @@ void VulkanContext::createDevice() {
 void VulkanContext::createAllocator() {
     VmaVulkanFunctions functions{};
 
-    VmaAllocatorCreateInfo allocatorInfo{};
-    allocatorInfo.physicalDevice = m_physicalDevice;
-    allocatorInfo.device = m_device;
-    allocatorInfo.instance = m_instance;
-    allocatorInfo.vulkanApiVersion = VK_API_VERSION_1_3;
-    allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+    VmaAllocatorCreateInfo info{
+        .flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT,
+        .physicalDevice = m_physicalDevice,
+        .device = m_device,
+        .instance = m_instance,
+        .vulkanApiVersion = VK_API_VERSION_1_3,
+    };
 
-    vmaImportVulkanFunctionsFromVolk(&allocatorInfo, &functions);
-    allocatorInfo.pVulkanFunctions = &functions;
+    vmaImportVulkanFunctionsFromVolk(&info, &functions);
+    info.pVulkanFunctions = &functions;
 
-    vkCheck(vmaCreateAllocator(&allocatorInfo, &m_allocator));
+    vkCheck(vmaCreateAllocator(&info, &m_allocator));
 
     SDL_Log("VMA allocator created");
 }

@@ -68,77 +68,88 @@ void VulkanSwapchain::create() {
     }
     SDL_Log("swapchain extent size: %u x %u", extent.width, extent.height);
 
-    // Fill swapchain info
-    VkSwapchainCreateInfoKHR info{};
-    info.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-    info.surface = m_context.surface();
-    info.minImageCount = imageCount;
-    info.imageFormat = m_format;
-    info.imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
-    info.imageExtent = extent;
-    info.imageArrayLayers = 1;
-    info.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-    info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    info.preTransform = capabilities.currentTransform;
-    info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-    info.presentMode = VK_PRESENT_MODE_FIFO_KHR;
-    info.clipped = VK_TRUE;
-    info.oldSwapchain = VK_NULL_HANDLE;
-
-    // Create swapchain
-    vkCheck(vkCreateSwapchainKHR(m_context.device(), &info, nullptr, &m_swapchain));
+    { // SWAPCHAIN
+        const VkSwapchainCreateInfoKHR info{
+            .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+            .surface = m_context.surface(),
+            .minImageCount = imageCount,
+            .imageFormat = m_format,
+            .imageColorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR,
+            .imageExtent = extent,
+            .imageArrayLayers = 1,
+            .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+            .imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
+            .preTransform = capabilities.currentTransform,
+            .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+            .presentMode = VK_PRESENT_MODE_FIFO_KHR,
+            .clipped = VK_TRUE,
+            .oldSwapchain = VK_NULL_HANDLE,
+        };
+        vkCheck(vkCreateSwapchainKHR(m_context.device(), &info, nullptr, &m_swapchain));
+    }
 
     // Retrieve swapchain images
     m_images = vkEnumerate<VkImage>(vkGetSwapchainImagesKHR, m_context.device(), m_swapchain);
     m_extent = extent;
 
-    // Create an image view per image
+    // SWAPCHAIN IMAGE VIEWS
     m_imageViews.resize(m_images.size());
     for (size_t i = 0; i < m_images.size(); i++) {
-        VkImageViewCreateInfo viewInfo{};
-        viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        viewInfo.image = m_images[i];
-        viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        viewInfo.format = m_format;
-        viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        viewInfo.subresourceRange.baseMipLevel = 0;
-        viewInfo.subresourceRange.levelCount = 1;
-        viewInfo.subresourceRange.baseArrayLayer = 0;
-        viewInfo.subresourceRange.layerCount = 1;
-
-        vkCheck(vkCreateImageView(m_context.device(), &viewInfo, nullptr, &m_imageViews[i]));
+        const VkImageViewCreateInfo info{
+            .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+            .image = m_images[i],
+            .viewType = VK_IMAGE_VIEW_TYPE_2D,
+            .format = m_format,
+            .subresourceRange = {
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .baseMipLevel = 0,
+                .levelCount = 1,
+                .baseArrayLayer = 0,
+                .layerCount = 1,
+            },
+        };
+        vkCheck(vkCreateImageView(m_context.device(), &info, nullptr, &m_imageViews[i]));
     }
 
-    VkImageCreateInfo depthImageInfo{};
-    depthImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    depthImageInfo.imageType = VK_IMAGE_TYPE_2D;
-    depthImageInfo.format = m_depthFormat;
-    depthImageInfo.extent = {extent.width, extent.height, 1};
-    depthImageInfo.mipLevels = 1;
-    depthImageInfo.arrayLayers = 1;
-    depthImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-    depthImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-    depthImageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-    depthImageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    { // DEPTH IMAGE
+        const VkImageCreateInfo imageInfo{
+            .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+            .imageType = VK_IMAGE_TYPE_2D,
+            .format = m_depthFormat,
+            .extent = {extent.width, extent.height, 1},
+            .mipLevels = 1,
+            .arrayLayers = 1,
+            .samples = VK_SAMPLE_COUNT_1_BIT,
+            .tiling = VK_IMAGE_TILING_OPTIMAL,
+            .usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+        };
 
-    VmaAllocationCreateInfo allocInfo{};
-    allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
-    allocInfo.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
-    vkCheck(vmaCreateImage(m_context.allocator(), &depthImageInfo, &allocInfo, &m_depthImage, &m_depthAllocation,
-                           nullptr));
+        const VmaAllocationCreateInfo allocInfo{
+            .flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT,
+            .usage = VMA_MEMORY_USAGE_AUTO,
+        };
 
-    VkImageViewCreateInfo depthViewInfo{};
-    depthViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    depthViewInfo.image = m_depthImage;
-    depthViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    depthViewInfo.format = m_depthFormat;
-    depthViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-    depthViewInfo.subresourceRange.baseMipLevel = 0;
-    depthViewInfo.subresourceRange.levelCount = 1;
-    depthViewInfo.subresourceRange.baseArrayLayer = 0;
-    depthViewInfo.subresourceRange.layerCount = 1;
+        vkCheck(vmaCreateImage(m_context.allocator(), &imageInfo, &allocInfo, &m_depthImage, &m_depthAllocation,
+                               nullptr));
+    }
 
-    vkCheck(vkCreateImageView(m_context.device(), &depthViewInfo, nullptr, &m_depthImageView));
+    { // DEPTH IMAGE VIEW
+        const VkImageViewCreateInfo info{
+            .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+            .image = m_depthImage,
+            .viewType = VK_IMAGE_VIEW_TYPE_2D,
+            .format = m_depthFormat,
+            .subresourceRange = {
+                .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
+                .baseMipLevel = 0,
+                .levelCount = 1,
+                .baseArrayLayer = 0,
+                .layerCount = 1,
+            },
+        };
+        vkCheck(vkCreateImageView(m_context.device(), &info, nullptr, &m_depthImageView));
+    }
 }
 
 void VulkanSwapchain::recreate() {
@@ -148,24 +159,26 @@ void VulkanSwapchain::recreate() {
 }
 
 void VulkanSwapchain::destroy() noexcept {
-    // Depth buffer
+    // DEPTH IMAGE VIEW
     if (m_depthImageView) {
         vkDestroyImageView(m_context.device(), m_depthImageView, nullptr);
         m_depthImageView = VK_NULL_HANDLE;
     }
+
+    // DEPTH IMAGE
     if (m_depthImage) {
         vmaDestroyImage(m_context.allocator(), m_depthImage, m_depthAllocation);
         m_depthImage = VK_NULL_HANDLE;
         m_depthAllocation = VK_NULL_HANDLE;
     }
 
-    // Swapchain image views
+    // SWAPCHAIN IMAGE VIEWS
     for (VkImageView view : m_imageViews) {
         vkDestroyImageView(m_context.device(), view, nullptr);
     }
     m_imageViews.clear();
 
-    // Swapchain
+    // SWAPCHAIN
     if (m_swapchain) {
         vkDestroySwapchainKHR(m_context.device(), m_swapchain, nullptr);
         m_swapchain = VK_NULL_HANDLE;
