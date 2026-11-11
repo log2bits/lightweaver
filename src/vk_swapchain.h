@@ -14,15 +14,15 @@ public:
     VulkanSwapchain(VulkanSwapchain&&) = delete;
     VulkanSwapchain& operator=(VulkanSwapchain&&) = delete;
 
-    VkSwapchainKHR swapchain() const { return m_swapchain; }
-    VkFormat format() const { return m_format; }
-    VkExtent2D extent() const { return m_extent; }
-    const std::vector<VkImage>& images() const { return m_images; }
-    const std::vector<VkImageView>& views() const { return m_imageViews; }
-    VkImage depthImage() const { return m_depthImage; }
-    VkImageView depthImageView() const { return m_depthImageView; }
-    VkFormat depthFormat() const { return m_depthFormat; }
-    bool valid() const { return m_swapchain != VK_NULL_HANDLE; }
+    const vk::raii::SwapchainKHR& swapchain() const { return m_swapchain; }
+    vk::Format format() const { return m_format; }
+    vk::Extent2D extent() const { return m_extent; }
+    const std::vector<vk::Image>& images() const { return m_images; }
+    const std::vector<vk::raii::ImageView>& views() const { return m_imageViews; }
+    vk::Image depthImage() const { return m_depthImage; }
+    const vk::raii::ImageView& depthView() const { return m_depthView; }
+    vk::Format depthFormat() const { return m_depthFormat; }
+    bool valid() const { return static_cast<bool>(*m_swapchain); }
     void recreate();
 
 private:
@@ -32,14 +32,14 @@ private:
     void create();
     void destroy() noexcept;
 
-    VkSwapchainKHR m_swapchain = VK_NULL_HANDLE;
-    VkFormat m_format = VK_FORMAT_B8G8R8A8_SRGB;
-    VkExtent2D m_extent{};
-    std::vector<VkImage> m_images;
-    std::vector<VkImageView> m_imageViews;
+    vk::raii::SwapchainKHR m_swapchain = nullptr;
+    vk::Format m_format = vk::Format::eB8G8R8A8Srgb;
+    vk::Extent2D m_extent{};
+    std::vector<vk::Image> m_images;
+    std::vector<vk::raii::ImageView> m_imageViews;
 
-    VkImage m_depthImage = VK_NULL_HANDLE;
-    VkImageView m_depthImageView = VK_NULL_HANDLE;
-    VmaAllocation m_depthAllocation = VK_NULL_HANDLE;
-    VkFormat m_depthFormat = VK_FORMAT_D32_SFLOAT;
+    vk::Image m_depthImage = nullptr;
+    vk::raii::ImageView m_depthView = nullptr;
+    VmaAllocation m_depthAllocation = nullptr;
+    vk::Format m_depthFormat = vk::Format::eD32Sfloat;
 };

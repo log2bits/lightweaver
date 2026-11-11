@@ -5,6 +5,8 @@
 #include "vk_renderer.h"
 #include "window.h"
 
+union SDL_Event;
+
 class Application {
 public:
     Application();
@@ -18,9 +20,12 @@ public:
     void run();
 
 private:
+    void handleEvent(const SDL_Event& event);
+
     Window m_window;
     VulkanContext m_context;
     VulkanSwapchain m_swapchain;
     VulkanRenderer m_renderer;
     bool m_running = false;
+    bool m_minimized = false;
 };

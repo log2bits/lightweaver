@@ -3,18 +3,21 @@ Language: Cpp
 BasedOnStyle: LLVM
 Standard: c++20
 
+# Formatting is done by hand. clang-format is a no-op, it only sits here so that
+# CLion does not fall back to its own built-in style and reformat everything.
+DisableFormat: true
+SortIncludes: false
+
+# Kept for reference, in case the formatter is ever turned back on
 IndentWidth: 4
 TabWidth: 4
 UseTab: Never
-ColumnLimit: 120
-
+ColumnLimit: 0
 PointerAlignment: Left
 ReferenceAlignment: Left
 DerivePointerAlignment: false
-
 AccessModifierOffset: -4
 BreakBeforeBraces: Attach
 AllowShortFunctionsOnASingleLine: Inline
 AlwaysBreakTemplateDeclarations: Yes
 MaxEmptyLinesToKeep: 1
-SortIncludes: false

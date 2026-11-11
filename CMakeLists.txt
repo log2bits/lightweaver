@@ -31,12 +31,6 @@ FetchContent_Declare(
 
 # Vulkan
 find_package(Vulkan REQUIRED)
-FetchContent_Declare(
-	volk
-	GIT_REPOSITORY https://github.com/zeux/volk.git
-	GIT_TAG 1.4.350
-	GIT_SHALLOW TRUE
-)
 
 # VMA
 FetchContent_Declare(
@@ -46,15 +40,13 @@ FetchContent_Declare(
 	GIT_SHALLOW TRUE
 )
 
-FetchContent_MakeAvailable(SDL3 glm volk vma)
+FetchContent_MakeAvailable(SDL3 glm vma)
 
 add_executable(
 	lightweaver
 	src/main.cpp
 	src/application.h
 	src/application.cpp
-	src/vk_check.h
-	src/vk_enumerate.h
 	src/vk_context.h
 	src/vk_context.cpp
 	src/window.h
@@ -65,10 +57,21 @@ add_executable(
 	src/vk_renderer.h
 	src/vma_impl.cpp
 	src/fatal.h
+	src/log.h
 )
 
-target_link_libraries(lightweaver PRIVATE SDL3::SDL3-static glm::glm volk::volk Vulkan::Headers GPUOpen::VulkanMemoryAllocator)
-target_compile_definitions(lightweaver PRIVATE VK_NO_PROTOTYPES)
+target_link_libraries(lightweaver PRIVATE SDL3::SDL3-static glm::glm Vulkan::Headers GPUOpen::VulkanMemoryAllocator)
+
+target_compile_definitions(lightweaver PRIVATE
+    # No link against vulkan-1, Vulkan-Hpp loads every entry point at runtime
+    VK_NO_PROTOTYPES
+    # Resizing the window is normal, so do not let it throw out of acquire/present
+    VULKAN_HPP_HANDLE_ERROR_OUT_OF_DATE_AS_SUCCESS
+)
+
+# VMA is third party, so stop /W4 from shouting about its internals
+get_target_property(vma_include_dirs GPUOpen::VulkanMemoryAllocator INTERFACE_INCLUDE_DIRECTORIES)
+target_include_directories(lightweaver SYSTEM PRIVATE ${vma_include_dirs})
 
 if (MSVC)
     target_compile_options(lightweaver PRIVATE /W4 /permissive-)
